@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pay Tracker">
+<meta name="theme-color" content="#0f172a">
+<title>Pay Tracker</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--line:#334155;--text:#f1f5f9;--muted:#94a3b8;--accent:#22c55e;--warn:#f59e0b;--danger:#ef4444}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+  main{max-width:520px;margin:0 auto;padding:16px}
+  h1{font-size:22px;margin:8px 0 14px}
+  h2{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px}
+  .card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px}
+  label{display:block;font-size:14px;color:var(--muted);margin:10px 0 4px}
+  input{width:100%;font-size:18px;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0b1222;color:var(--text)}
+  .row{display:flex;gap:10px}.row>*{flex:1}
+  button{font-size:16px;padding:12px 14px;border-radius:10px;border:0;background:var(--line);color:var(--text);cursor:pointer}
+  button.primary{background:var(--accent);color:#04210f;font-weight:600;width:100%;margin-top:14px}
+  button.small{padding:6px 10px;font-size:14px}
+  button.danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:#0b1222;border-radius:10px;padding:12px}
+  .stat .v{font-size:24px;font-weight:700}
+  .stat .k{font-size:13px;color:var(--muted)}
+  .preview{margin-top:10px;font-size:14px;color:var(--muted)}
+  ul{list-style:none;margin:0;padding:0}
+  li{border-top:1px solid var(--line);padding:10px 0;display:flex;justify-content:space-between;gap:8px;align-items:center}
+  li:first-child{border-top:0}
+  .meta{font-size:13px;color:var(--muted)}
+  .actions{display:flex;gap:6px}
+  .tools{display:flex;flex-wrap:wrap;gap:8px}
+  .note{font-size:13px;color:var(--muted)}
+  .editing{color:var(--warn);font-size:14px;margin-top:8px}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#020617;border:1px solid var(--line);padding:10px 16px;border-radius:10px;display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Pay Tracker</h1>
+
+  <section class="card">
+    <h2 id="formTitle">Log a shift</h2>
+    <div class="row">
+      <div><label for="date">Date</label><input id="date" type="date"></div>
+    </div>
+    <div class="row">
+      <div><label for="minutes">Total minutes</label><input id="minutes" type="number" inputmode="numeric" min="0" step="1" placeholder="90"></div>
+      <div><label for="tasks">Paid tasks</label><input id="tasks" type="number" inputmode="numeric" min="0" step="1" placeholder="75"></div>
+    </div>
+    <label for="rate">Pay per task ($)</label>
+    <input id="rate" type="number" inputmode="decimal" min="0" step="0.01" value="0.20">
+    <div class="preview" id="preview">Enter minutes and tasks to see your pay.</div>
+    <div class="editing" id="editingNote" hidden></div>
+    <button class="primary" id="saveBtn">Save shift</button>
+    <button id="cancelEdit" hidden style="width:100%;margin-top:8px">Cancel edit</button>
+  </section>
+
+  <section class="card">
+    <h2>Last shift</h2>
+    <div class="stats">
+      <div class="stat"><div class="v" id="lastEarned">$0.00</div><div class="k">Earned</div></div>
+      <div class="stat"><div class="v" id="lastHourly">$0.00</div><div class="k">Actual hourly rate</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>This week <span class="note" id="weekRange"></span></h2>
+    <div class="stats">
+      <div class="stat"><div class="v" id="weekEarned">$0.00</div><div class="k">Earned this week</div></div>
+      <div class="stat"><div class="v" id="weekHourly">$0.00</div><div class="k">Weekly hourly rate</div></div>
+      <div class="stat"><div class="v" id="weekTasks">0</div><div class="k">Paid tasks</div></div>
+      <div class="stat"><div class="v" id="weekTime">0h 0m</div><div class="k">Time worked</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>All time</h2>
+    <div class="stats">
+      <div class="stat"><div class="v" id="allEarned">$0.00</div><div class="k">Earned</div></div>
+      <div class="stat"><div class="v" id="allHourly">$0.00</div><div class="k">Hourly rate</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Shifts</h2>
+    <ul id="list"></ul>
+    <p class="note" id="empty">No shifts yet.</p>
+  </section>
+
+  <section class="card">
+    <h2>Export &amp; backup</h2>
+    <div class="tools">
+      <button id="exportCsv">Export CSV</button>
+      <button id="copyTotals">Copy totals</button>
+      <button id="backupBtn">Save backup</button>
+      <button id="restoreBtn">Restore backup</button>
+      <input id="restoreFile" type="file" accept=".json,application/json" hidden>
+    </div>
+    <p class="note">Entries are saved only on this device, in this browser. Clearing Safari's website data deletes them, so save a backup now and then.</p>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const KEY = 'payTracker.v1';
+const $ = id => document.getElementById(id);
+
+// ---- pure math (tested) ----
+function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
+function earned(e){ return round2(e.tasks * e.rate); }
+function hourly(totalEarned, minutes){ return minutes > 0 ? round2(totalEarned / (minutes / 60)) : 0; }
+function weekStart(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); return x; } // Monday
+function ymd(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function parseYmd(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function totals(list){
+  const minutes = list.reduce((a,e)=>a+e.minutes,0);
+  const tasks = list.reduce((a,e)=>a+e.tasks,0);
+  const money = round2(list.reduce((a,e)=>a+earned(e),0));
+  return { minutes, tasks, money, hourly: hourly(money, minutes) };
+}
+function inWeek(list, today){
+  const s = weekStart(today), end = new Date(s); end.setDate(s.getDate()+7);
+  return list.filter(e => { const d = parseYmd(e.date); return d >= s && d < end; });
+}
+const fmt$ = n => '$' + n.toFixed(2);
+const fmtTime = m => Math.floor(m/60) + 'h ' + (m%60) + 'm';
+
+// ---- storage ----
+function load(){ try { const d = JSON.parse(localStorage.getItem(KEY)); return d && Array.isArray(d.entries) ? d : { entries: [], lastRate: 0.20 }; } catch { return { entries: [], lastRate: 0.20 }; } }
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+let state = load();
+let editingId = null;
+
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toast.t); toast.t=setTimeout(()=>t.style.display='none',2200); }
+
+function readForm(){
+  return { date: $('date').value || ymd(new Date()), minutes: Number($('minutes').value), tasks: Number($('tasks').value), rate: Number($('rate').value) };
+}
+function valid(f){
+  if (!(f.minutes > 0) || !Number.isFinite(f.minutes)) return 'Enter total minutes (more than 0).';
+  if (!(f.tasks >= 0) || !Number.isInteger(f.tasks) || $('tasks').value === '') return 'Enter the number of paid tasks (a whole number).';
+  if (!(f.rate >= 0) || $('rate').value === '') return 'Enter pay per task.';
+  return null;
+}
+function updatePreview(){
+  const f = readForm();
+  if (f.minutes > 0 && $('tasks').value !== '' && f.rate >= 0) {
+    const e = earned(f);
+    $('preview').textContent = `This shift: ${fmt$(e)} earned, ${fmt$(hourly(e, f.minutes))}/hr`;
+  } else $('preview').textContent = 'Enter minutes and tasks to see your pay.';
+}
+function resetForm(){
+  editingId = null;
+  $('minutes').value = ''; $('tasks').value = '';
+  $('rate').value = (state.lastRate ?? 0.20).toFixed(2);
+  $('date').value = ymd(new Date());
+  $('formTitle').textContent = 'Log a shift'; $('saveBtn').textContent = 'Save shift';
+  $('editingNote').hidden = true; $('cancelEdit').hidden = true;
+  updatePreview();
+}
+
+function render(){
+  const sorted = [...state.entries].sort((a,b)=> b.date.localeCompare(a.date) || b.created - a.created);
+  const last = sorted[0];
+  $('lastEarned').textContent = last ? fmt$(earned(last)) : '$0.00';
+  $('lastHourly').textContent = last ? fmt$(hourly(earned(last), last.minutes)) + '/hr' : '$0.00';
+  const today = new Date(), ws = weekStart(today), we = new Date(ws); we.setDate(ws.getDate()+6);
+  $('weekRange').textContent = `(${ws.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${we.toLocaleDateString(undefined,{month:'short',day:'numeric'})})`;
+  const w = totals(inWeek(state.entries, today));
+  $('weekEarned').textContent = fmt$(w.money); $('weekHourly').textContent = fmt$(w.hourly) + '/hr';
+  $('weekTasks').textContent = w.tasks; $('weekTime').textContent = fmtTime(w.minutes);
+  const a = totals(state.entries);
+  $('allEarned').textContent = fmt$(a.money); $('allHourly').textContent = fmt$(a.hourly) + '/hr';
+  const ul = $('list'); ul.innerHTML = '';
+  $('empty').hidden = sorted.length > 0;
+  for (const e of sorted) {
+    const li = document.createElement('li');
+    const d = parseYmd(e.date).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+    li.innerHTML = `<div><div><strong>${fmt$(earned(e))}</strong> · ${fmt$(hourly(earned(e), e.minutes))}/hr</div>
+      <div class="meta">${d} · ${e.minutes} min · ${e.tasks} tasks @ ${fmt$(e.rate)}</div></div>
+      <div class="actions"><button class="small" data-edit="${e.id}">Edit</button><button class="small danger" data-del="${e.id}">Delete</button></div>`;
+    ul.appendChild(li);
+  }
+}
+
+$('saveBtn').onclick = () => {
+  const f = readForm(); const err = valid(f);
+  if (err) { toast(err); return; }
+  if (editingId) {
+    const e = state.entries.find(x => x.id === editingId);
+    Object.assign(e, f); toast('Shift updated');
+  } else {
+    state.entries.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), created: Date.now(), ...f });
+    toast('Shift saved');
+  }
+  state.lastRate = f.rate; save(); resetForm(); render();
+};
+$('cancelEdit').onclick = resetForm;
+$('list').onclick = ev => {
+  const editId = ev.target.dataset.edit, delId = ev.target.dataset.del;
+  if (editId) {
+    const e = state.entries.find(x => x.id === editId); editingId = e.id;
+    $('date').value = e.date; $('minutes').value = e.minutes; $('tasks').value = e.tasks; $('rate').value = e.rate.toFixed(2);
+    $('formTitle').textContent = 'Edit shift'; $('saveBtn').textContent = 'Save changes';
+    $('editingNote').textContent = 'Editing the ' + e.date + ' shift.'; $('editingNote').hidden = false; $('cancelEdit').hidden = false;
+    updatePreview(); window.scrollTo({top:0,behavior:'smooth'});
+  } else if (delId && confirm('Delete this shift?')) {
+    state.entries = state.entries.filter(x => x.id !== delId);
+    if (editingId === delId) resetForm();
+    save(); render(); toast('Shift deleted');
+  }
+};
+['minutes','tasks','rate'].forEach(id => $(id).addEventListener('input', updatePreview));
+
+function download(name, text, type){
+  const blob = new Blob([text], {type});
+  const file = new File([blob], name, {type});
+  if (navigator.canShare && navigator.canShare({files:[file]})) { navigator.share({files:[file], title:name}).catch(()=>{}); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+function csv(){
+  const rows = [['Date','Minutes','Paid tasks','Pay per task','Earned','Hourly rate']];
+  [...state.entries].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e => rows.push([e.date, e.minutes, e.tasks, e.rate.toFixed(2), earned(e).toFixed(2), hourly(earned(e), e.minutes).toFixed(2)]));
+  const w = totals(inWeek(state.entries, new Date())), a = totals(state.entries);
+  rows.push([]); rows.push(['This week', w.minutes, w.tasks, '', w.money.toFixed(2), w.hourly.toFixed(2)]);
+  rows.push(['All time', a.minutes, a.tasks, '', a.money.toFixed(2), a.hourly.toFixed(2)]);
+  return rows.map(r => r.join(',')).join('\n');
+}
+function totalsText(){
+  const w = totals(inWeek(state.entries, new Date())), a = totals(state.entries);
+  return `Pay Tracker totals (${ymd(new Date())})\nThis week: ${fmt$(w.money)} from ${w.tasks} tasks in ${fmtTime(w.minutes)} = ${fmt$(w.hourly)}/hr\nAll time: ${fmt$(a.money)} from ${a.tasks} tasks in ${fmtTime(a.minutes)} = ${fmt$(a.hourly)}/hr`;
+}
+$('exportCsv').onclick = () => download(`pay-tracker-${ymd(new Date())}.csv`, csv(), 'text/csv');
+$('copyTotals').onclick = async () => { try { await navigator.clipboard.writeText(totalsText()); toast('Totals copied'); } catch { prompt('Copy your totals:', totalsText()); } };
+$('backupBtn').onclick = () => download(`pay-tracker-backup-${ymd(new Date())}.json`, JSON.stringify(state, null, 1), 'application/json');
+$('restoreBtn').onclick = () => $('restoreFile').click();
+$('restoreFile').onchange = async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  try { const d = JSON.parse(await f.text()); if (!Array.isArray(d.entries)) throw 0;
+    if (!confirm(`Replace current data with ${d.entries.length} shifts from this backup?`)) return;
+    state = d; save(); resetForm(); render(); toast('Backup restored');
+  } catch { toast('That file is not a Pay Tracker backup.'); }
+  ev.target.value = '';
+};
+
+resetForm(); render();
+</script>
+</body>
+</html>
