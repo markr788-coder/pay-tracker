@@ -248,6 +248,14 @@ $('restoreFile').onchange = async ev => {
   ev.target.value = '';
 };
 
+// one-time import of logged shifts (laptop file, or web link with ?add=1314)
+(function(){ const FLAG='payTracker.seed1314';
+  if (localStorage.getItem(FLAG)) return;
+  if (!(location.protocol==='file:' || /add=1314/.test(location.search))) return;
+  [{id:'tl1113a',created:1794590000000,date:'2026-11-13',minutes:80,tasks:50,rate:0.2},
+   {id:'tl1114a',created:1794680000000,date:'2026-11-14',minutes:32,tasks:25,rate:0.2}]
+   .forEach(e=>{ if(!state.entries.some(x=>x.id===e.id)) state.entries.push(e); });
+  save(); localStorage.setItem(FLAG,'1'); })();
 resetForm(); render();
 </script>
 </body>
